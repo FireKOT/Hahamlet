@@ -5,8 +5,8 @@
 #include "general.h"
 
 
-int comp (const void *param1, const void *param2);
-int args (int argc, const char *argv[]);
+int str_comparator (const void *param1, const void *param2);
+int args_processing (int argc, const char *argv[]);
 
 int main (int argc, const char *argv[]) {
 
@@ -28,15 +28,15 @@ int main (int argc, const char *argv[]) {
     int lines_count = LinesCount(text);
     char **rtext = ReverseText(text, lines_count);
 
-    if(args(argc, argv)){
+    if(args_processing(argc, argv)){
         qStrSort(text, 0, lines_count-1);
         qStrSort(rtext, 0, lines_count-1);
 
         printf("File sorted by qStrSort\n");
     }
     else{
-        qsort(text, LinesCount(text), sizeof(char*), comp);
-        qsort(rtext, LinesCount(text), sizeof(char*), comp);
+        qsort(text, LinesCount(text), sizeof(char*), str_comparator);
+        qsort(rtext, LinesCount(text), sizeof(char*), str_comparator);
 
         printf("File sorted by qsort\n");
     }
@@ -48,11 +48,12 @@ int main (int argc, const char *argv[]) {
 }
 
 
-int comp (const void *param1, const void *param2) {
+int str_comparator (const void *param1, const void *param2) {
+
     return strcmp(*(char*const*) param1, *(char*const*) param2);
 }
 
-int args (int argc, const char *argv[]) {
+int args_processing (int argc, const char *argv[]) {
 
     int ismysort = false;
     for(int i = 1; i < argc; i++){

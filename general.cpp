@@ -10,7 +10,7 @@ int IsEqNum  (double n, double m) {
     return fabs(n - m) < EPS;
 }
 
-int ClearBuf () {
+int ClearStdinBuf () {
 
     int trash = false;
     int c = 0;

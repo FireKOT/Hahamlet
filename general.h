@@ -28,7 +28,7 @@ int  IsEqNum     (double n, double m);
 //!
 //! @retval true  if there were trash in line
 //! @retval false otherwise
-int  ClearBuf    ();
+int  ClearStdinBuf    ();
 
 
 //! @brief swap two numbers of double type
