@@ -7,286 +7,207 @@
 #include "general.h"
 #include "strsort.h"
 
-#define BUFF 10
+#define BUF_SIZE 10
 
-char **GetText (const char *file_name) {
+int GetText (const char *file_name, lyrics *file) {
 
-    if(!file_name){
+    if (!file_name) {
         ERR_MSG(ERR_NULL_PTR);
-
-        return NULL;
+        return -1;
     }
 
     FILE *input = fopen(file_name, "r");
-    if(!input){
+    if (!input) {
         ERR_MSG(ERR_NULL_PTR);
-
-        return NULL;
+        return -1;
     }
 
-    struct stat file_stats;
-    stat(file_name, &file_stats);
+    struct stat file_stats;                         //why i need to write "struct"
+    int status = stat(file_name, &file_stats);
+    if (status == -1) {
+        ERR_MSG(ERR_NULL_PTR);
+        return -1;
+    }
 
-    char *file = (char*) calloc(file_stats.st_size / sizeof(char) + BUFF, sizeof(char));
-    int lines_count = ReadFile(input, file);
+    file->source = (char*) calloc(file_stats.st_size / sizeof(char) + BUF_SIZE, sizeof(char));
+    if (!file->source) {
+        ERR_MSG(ERR_NULL_PTR);
+        return -1;
+    }
 
-    char **text = (char**) calloc(lines_count + BUFF, sizeof(char*));
-    SepLines(text, file);
+    int lines_count = ReadFile(input, file->source);
+
+    file->text = (line*) calloc(lines_count + BUF_SIZE, sizeof(line));
+    if (!file->text) {
+        ERR_MSG(ERR_NULL_PTR);
+        return -1;
+    }
+
+    file->lines_count = SepLines(file->text, file->source);
 
     fclose(input);
-    return text;
+    return 0;
 }
 
-int ReadFile (FILE *input, char *file) {
+int ReadFile (FILE *input, char *buf) {
 
-    if(!input || !file){
+    if (!input || !buf) {
         ERR_MSG(ERR_NULL_PTR);
-
         return EOF;
     }
 
     int c = 0, lines_count = 0;
     int i = 0;
-    while((c = getc(input)) != EOF){
-        if(c != '\n'){
-            file[i] = (char) c;
-        }
-        else{
-            file[i] = '\0';
-            lines_count++;
-        }
+    buf[++i] = '\0';
+    while ((c = getc(input)) != EOF) {
+        if (c != '\r') {
+            if (c != '\n') {
+                buf[i] = (char) c;
+            }
+            else {
+                buf[i] = '\0';
+                lines_count++;
+            }
 
-        i++;
+            i++;
+        }
     }
-    file[++i] = '\0';
-    file[i] = EOF;
+    buf[i++] = '\0';
+    buf[i] = EOF;
 
     return lines_count;
 }
 
-void SepLines (char **text, char *file) {
+int SepLines (line *text, char *file) {
 
-    if(!text || !file){
+    if (!text || !file) {
         ERR_MSG(ERR_NULL_PTR);
-
-        return;
+        return -1;
     }
 
+    int lines_count = 0;
     int i = 0;
-    for(i = 0; *file != EOF; i++, file++){
-        while(*file == ' ' || *file == '\t'){
+    for (i = 0; *file != EOF; i++, file++) {
+        if (*file != '\0') {
+            text[i].start = file;
+            lines_count++;
             file++;
         }
-
-        if(*file != '\0'){
-            text[i] = file;
-        }
-        else{
+        else {
             i--;
+            continue;
         }
 
-        char *end_of_line = 0;
-        while(*file != '\0'){
-            if(isalnum(*file)){
-                end_of_line = file;
-            }
+        while (*file != '\0') {
+            text[i].end = file;
             file++;
-        }
-
-        if(end_of_line){
-            *(++end_of_line) = '\0';
-        }
+        } 
+        //text[i].end = --file;
+        //file++;
     }
-    text[i] = NULL;
+    text[i].start = NULL;
+    text[i].end = NULL;
+
+    return lines_count;
 }
 
-int LinesCount (char **text) {
+void MyqSort (void *start, int count, int size, int (*comp)(const void *param1, const void *param2)) {
 
-    if(!text){
-        ERR_MSG(ERR_NULL_PTR);
+    char *mas = (char*) start;
 
-        return EOF;
+    if (count > 1) {
+        int p = sort_partition(mas, count-1, size, comp);
+        MyqSort(mas, p-1, size, comp);
+        MyqSort(mas + (p+1)*size, count - (p+1), size, comp);
     }
+}
+
+int sort_partition (void *start, int hight, int size, comp_t *comp) {
+
+    char *mas = (char*) start;
 
     int i = 0;
-    while(text[i++] != NULL) ;
+    for (int j = 0; j < hight; j++) {
+        if (comp(mas + j*size, mas + hight*size) <= 0) {
+            swap(mas + i*size, mas + j*size, size);
+            i++;
+        }
+    }
+    swap(mas + i*size, mas + hight*size, size);
 
-    return i-1;
+    return i;
 }
 
-int WriteTextinFile (char **text, const char *file) {
+int linecmp (const void *param1, const void *param2) {
 
-    if(!text || !file){
+    char *a_start = ((const line*) param1)->start;
+    char *b_start = ((const line*) param2)->start;
+    char *a_end   = ((const line*) param1)->end;
+    char *b_end   = ((const line*) param2)->end;
+
+    while (!isalnum(*a_start) && a_start != a_end + 1) {
+        a_start++;
+    }
+    while (!isalnum(*b_start) && b_start != b_end + 1) {
+        b_start++;
+    }
+    
+    for ( ;tolower(*a_start) == tolower(*b_start); a_start++, b_start++) {
+        if (a_start == a_end + 1) {
+            return 0;
+        }
+    }
+    
+    return tolower(*a_start) - tolower(*b_start);
+}
+
+int linercmp (const void *param1, const void *param2) {
+
+    char *a_start = ((const line*) param1)->start;
+    char *b_start = ((const line*) param2)->start;
+    char *a_end   = ((const line*) param1)->end;
+    char *b_end   = ((const line*) param2)->end;
+
+    while (!isalnum(*a_end) && a_end != a_start - 1) {
+        a_end--;
+    }
+    while (!isalnum(*b_end) && b_end != b_start - 1) {
+        b_end--;
+    }
+
+    for ( ; tolower(*a_end) == tolower(*b_end); a_end--, b_end--) {
+        if (a_end == a_start - 1) {
+            return 0; 
+        }
+    }
+
+    return tolower(*a_end) - tolower(*b_end);
+}
+
+int WriteTextinFile (line *text, const char *file) {
+
+    if (!text || !file) {
         ERR_MSG(ERR_NULL_PTR);
-
         return EOF;
     }
 
     FILE *output = fopen(file, "w");
-    if(!output){
+    if (!output) {
         ERR_MSG(ERR_NULL_PTR);
-
         return EOF;
     }
 
-    for(int i = 0; text[i] != NULL; i++){
-        fprintf(output, "%s\n", text[i]);
+    for (int i = 0; text[i].start != NULL; i++) {
+        char *str = text[i].start;
+        while (!isalnum(*str) && *str != '\0') {
+            str++;
+        }
+
+        if (*str != '\0') {
+            fprintf(output, "%s\n", str);
+        }
     }
     fclose(output);
 
     return true;
 }
-
-char **ReverseText (char **text, int lines_count) {
-
-    if(!text){
-        ERR_MSG(ERR_NULL_PTR);
-
-        return NULL;
-    }
-
-    char **rtext = (char**) calloc(lines_count + BUFF, sizeof(char*));
-    int i = 0;
-    for(i = 0; text[i] != NULL; i++){
-        rtext[i] = ReverseLine(text[i], strlen(text[i]));
-    }
-    rtext[i] = NULL;
-
-    return rtext;
-}
-
-char *ReverseLine (char *str, int len) {
-
-    if(!str){
-        ERR_MSG(ERR_NULL_PTR);
-
-        return NULL;
-    }
-
-    char *rstr = (char*) calloc(len + BUFF, sizeof(char));
-    int i = 0;
-    for(int j = len-1; i < len; i++, j--){
-        rstr[i] = str[j];
-    }
-    rstr[i] = '\0';
-
-    return rstr;
-}
-
-void qStrSort (char **text, int low, int hight) {
-
-    if(!text){
-        ERR_MSG(ERR_NULL_PTR);
-
-        return;
-    }
-
-    if(low < hight){
-        int p = sort_partition(text, low, hight);
-        qStrSort(text, low, p-1);
-        qStrSort(text, p+1, hight);
-    }
-}
-
-int sort_partition (char **text, int low, int hight) {
-
-    if(!text){
-        ERR_MSG(ERR_NULL_PTR);
-
-        return EOF;
-    }
-
-    int i = low;
-    for(int j = low; j < hight; j++){
-        if(strcmp(text[j], text[hight]) <= 0){
-            strswap(&text[i], &text[j]);
-            i++;
-        }
-    }
-    strswap(&text[i], &text[hight]);
-
-    return i;
-}
-
-
-
-
-
-
-//===================== version with realloc (dynamic memory allocation)
-
-
-char *ReadLine (FILE *input) {
-
-    if(!input){
-        ERR_MSG(ERR_NULL_PTR);
-
-        return NULL;
-    }
-
-    int line_size = 1024;
-    char *str = (char*) calloc(line_size, sizeof(char));
-
-    int i = 0, c = 0;
-    for(i = 0; (c = getc(input)) != '\n' && c != EOF; i++){
-        if(i+1 == line_size){
-            line_size *= 2;
-            str = (char*) realloc(str, line_size * sizeof(char));
-        }
-
-        str[i] = (char) c;
-    }
-    if(c == EOF){
-        return NULL;
-    }
-    str[i] = '\0';
-
-    return str;
-}
-
-char **ReadText (FILE *input) {
-
-    if(!input){
-        ERR_MSG(ERR_NULL_PTR);
-
-        return NULL;
-    }
-
-    int str_count = 1024;
-    char **lines = (char**) calloc(str_count, sizeof(char*));
-
-    char *str = 0;
-    int i = 0;
-    for(i = 0; (str = ReadLine(input)) != NULL; i++){
-        if(i+1 == str_count){
-            str_count *= 2;
-            lines = (char**) realloc(lines, str_count * sizeof(char*));
-        }
-
-        DelLeadSpace(&str);
-
-        if(*str != '\0'){
-            lines[i] = str;
-        }
-        else{
-            i--;
-        }
-    }
-    lines[i] = NULL;
-
-    return lines;
-}
-
-void DelLeadSpace (char **str){
-
-    if(!str){
-        ERR_MSG(ERR_NULL_PTR);
-
-        return;
-    }
-
-    while(**str == ' ' || **str == '\t') {
-        (*str)++;
-    }
-}
-

@@ -2,47 +2,18 @@
 #define _GENERAL_H
 
 
-enum ErrCodes{
-    ERR_NULL_PTR,                   ///< NULL pointer
-    ERR_ARG_INVAL,                  ///< invaluable arg
-    ERR_INCRR_TESTS,                ///< incorrect tests
-    ERR_DVSN_ZERO                   ///< devision on zero
+enum ErrCodes {
+    ERR_NULL_PTR    = 1,        ///< NULL pointer
+    ERR_ARG_INVAL   = 2,        ///< invaluable arg
+    ERR_INCRR_TESTS = 3,        ///< incorrect tests
+    ERR_DVSN_ZERO   = 4         ///< devision on zero
 };
 
 
-//! @brief compare numbers of double type with EPS accuracy
-//!
-//! @param [in] n first double number
-//! @param [in] m second double number
-//!
-//! @return [int] result of compare
-//!
-//! @retval true  if numbers are equal
-//! @retval false otherwise
-int  IsEqNum     (double n, double m);
+int ArgsProcess    (int argc, const char *argv[], int num, const char *possible_args[], int *args[]);
+void swap          (void *param1, void *param2, int size);
+int ClearStdinBuf  ();
+int WantContinue   ();
 
 
-//! @brief clear current line in console
-//!
-//! @return [int] result of cleaning
-//!
-//! @retval true  if there were trash in line
-//! @retval false otherwise
-int  ClearStdinBuf    ();
-
-
-//! @brief swap two numbers of double type
-//!
-//! @param [in] a first number
-//! @param [in] b second number
-void fswap    (double *a, double *b);
-
-
-void strswap (char **str1, char **str2);
-
-
-//! @brief request permission to continue
-int WantContinue ();
-
-
-#endif
+#endif // _GENERAL

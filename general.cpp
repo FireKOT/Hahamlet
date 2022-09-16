@@ -1,20 +1,39 @@
 #include <stdio.h>
 #include <tgmath.h>
+#include <string.h>
 #include "general.h"
 #include "config.h"
 
-#define EPS 1e-6
 
-int IsEqNum  (double n, double m) {
+int ArgsProcess (int argc, const char *argv[], int num, const char *possible_args[], int *args[]) {
 
-    return fabs(n - m) < EPS;
+    for (int i = 1; i < argc; i++) {
+        for (int j = 0; j < num; j++) {
+            if (strcmp(argv[i], possible_args[j]) == 0) {
+                *args[j] = 1;
+            }
+        }
+    }
+
+    return 1;
+}
+
+void swap (void *param1, void *param2, int size) {
+
+    char *pr1 = (char*) param1;
+    char *pr2 = (char*) param2;
+    for (int i = 0; i < size; i++) {
+        char tmp = pr1[i];
+        pr1[i] = pr2[i];
+        pr2[i] = tmp; 
+    }
 }
 
 int ClearStdinBuf () {
 
     int trash = false;
     int c = 0;
-    while((c = getchar()) != '\n'){
+    while ((c = getchar()) != '\n') {
         if (c != ' ' && c != '\t'){
             trash = true;
         }
@@ -23,35 +42,21 @@ int ClearStdinBuf () {
     return trash;
 }
 
-void fswap   (double *a, double *b) {
-
-    double *tmp = a;
-    a = b;
-    b = tmp;
-}
-
-void strswap (char **str1, char **str2) {
-
-    char *tmp = *str1;
-    *str1 = *str2;
-    *str2 = tmp;
-}
-
 int WantContinue () {
 
     printf("Do you want to continue [Y/N]?\n");
 
     int c = getchar();
-    int isClear = ClearBuf();
-    while((c != 'Y' && c != 'y' && c != 'N' && c != 'n') || isClear != 0){
+    int isClear = ClearStdinBuf();
+    while ((c != 'Y' && c != 'y' && c != 'N' && c != 'n') || isClear != 0) {
         printf("Incorrect value\n");
         printf("Do you want to continue [Y/N]?\n");
 
         c = getchar();
-        isClear = ClearBuf();
+        isClear = ClearStdinBuf();
     }
 
-    if(c == 'Y' || c =='y'){
+    if (c == 'Y' || c =='y') {
         return 1;
     }
 

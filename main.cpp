@@ -3,64 +3,44 @@
 #include <stdlib.h>
 #include "strsort.h"
 #include "general.h"
+#include "config.h"
 
-
-int str_comparator (const void *param1, const void *param2);
-int args_processing (int argc, const char *argv[]);
 
 int main (int argc, const char *argv[]) {
 
-//===================== version with realloc (dynamic memory allocation)
-//    FILE *input_file = fopen("hamlet.txt", "r");
-//    char **text = ReadText(input_file);
-//    fclose(input_file);
-//
-//    qsort(text, LineCount(text), sizeof(char*), comp);
-//
-//    FILE *output_file = fopen("hamlet_sorted.txt", "w");
-//    for(int i = 0; text[i] != NULL; i++){
-//        fprintf(output_file, "%s\n", text[i]);
-//    }
-//    fclose(output_file);
-//======================================================================
+    int ArgsNum = 1;
+    int mysort = 0;
+    int *args[] =                  {&mysort};
+    const char *possible_args[] = {"-mysort"};
 
-    char **text = GetText("hamlet.txt");
-    int lines_count = LinesCount(text);
-    char **rtext = ReverseText(text, lines_count);
+    lyrics file;
 
-    if(args_processing(argc, argv)){
-        qStrSort(text, 0, lines_count-1);
-        qStrSort(rtext, 0, lines_count-1);
+    ArgsProcess(argc, argv, ArgsNum, possible_args, args);
+
+    int err = GetText("hamlet.txt", &file);
+    if (err == -1) {
+        ERR_MSG(ERR_NULL_PTR);
+        return ERR_NULL_PTR;
+    }
+
+    if (mysort) {
+        MyqSort(file.text, file.lines_count, sizeof(line), linecmp);
+        WriteTextinFile(file.text, "hamlet_sorted.txt");
+
+        MyqSort(file.text, file.lines_count, sizeof(line), linercmp);
+        WriteTextinFile(file.text, "hamlet_sorted.txt");
 
         printf("File sorted by qStrSort\n");
     }
-    else{
-        qsort(text, LinesCount(text), sizeof(char*), str_comparator);
-        qsort(rtext, LinesCount(text), sizeof(char*), str_comparator);
+    else {
+        qsort(file.text, file.lines_count, sizeof(line), linecmp);
+        WriteTextinFile(file.text, "hamlet_sorted.txt");
+
+        qsort(file.text, file.lines_count, sizeof(line), linercmp);
+        WriteTextinFile(file.text, "hamlet_sorted_reversed.txt");
 
         printf("File sorted by qsort\n");
     }
 
-    WriteTextinFile(text, "hamlet_sorted.txt");
-    WriteTextinFile(rtext, "hamlet_sorted_reversed.txt");
-
     return 0;
-}
-
-
-int str_comparator (const void *param1, const void *param2) {
-
-    return strcmp(*(char*const*) param1, *(char*const*) param2);
-}
-
-int args_processing (int argc, const char *argv[]) {
-
-    int ismysort = false;
-    for(int i = 1; i < argc; i++){
-        if(!strcmp(argv[i], "-mysort")){
-            ismysort = true;
-        }
-    }
-
-    return ismysort;
 }

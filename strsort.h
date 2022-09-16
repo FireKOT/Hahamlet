@@ -1,26 +1,34 @@
-#ifndef _STRSORT
-#define _STRSORT
+#ifndef _STRSORT_H
+#define _STRSORT_H
 
 
-char **GetText      (const char *file_name);
-int ReadFile        (FILE *input, char *file);
-void SepLines       (char **text, char *file);
-int LinesCount      (char **text);
-int WriteTextinFile (char **text, const char *file);
-char **ReverseText  (char **text, int lines_count);
-char *ReverseLine   (char *str, int len);
-void qStrSort       (char **text, int low, int hight);
-int sort_partition  (char **text, int low, int hight);
+typedef int comp_t (const void *param1, const void *param2);
 
 
+struct line {
+    
+    char *start = 0;
+    char *end   = 0;
+};
 
 
+struct lyrics {
 
-//===================== version with realloc (dynamic memory allocation)
+    char *source = 0;
+    line *text = 0;
+
+    int lines_count = 0;
+};
 
 
-char *ReadLine    (FILE *input);
-char **ReadText   (FILE *input);
-void DelLeadSpace (char **str);
+int GetText         (const char *file_name, lyrics *text);
+int ReadFile        (FILE *input, char *buf);
+int SepLines        (line *text, char *file);
+void MyqSort        (void *start, int count, int size, comp_t *comp);
+int sort_partition  (void *start, int hight, int size, int (*comp)(const void*, const void*));
+int linecmp         (const void *param1, const void *param2);
+int linercmp        (const void *param1, const void *param2);
+int WriteTextinFile (line *text, const char *file);
+
 
 #endif // _STRSORT
