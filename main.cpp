@@ -13,34 +13,44 @@ int main (int argc, const char *argv[]) {
     int *args[] =                  {&mysort};
     const char *possible_args[] = {"-mysort"};
 
-    lyrics file;
-
     ArgsProcess(argc, argv, ArgsNum, possible_args, args);
 
+    text file = {};
+
     int err = GetText("hamlet.txt", &file);
-    if (err == -1) {
-        ERR_MSG(ERR_NULL_PTR);
-        return ERR_NULL_PTR;
-    }
+
+    RET_ON_VAL(err == -1, ERR_NULL_PTR, ERR_NULL_PTR);
 
     if (mysort) {
-        MyqSort(file.text, file.lines_count, sizeof(line), linecmp);
-        WriteTextinFile(file.text, "hamlet_sorted.txt");
 
-        MyqSort(file.text, file.lines_count, sizeof(line), linercmp);
-        WriteTextinFile(file.text, "hamlet_sorted.txt");
+        int w_err = 0;
+
+        MyqSort(file.content, file.lines_count, sizeof(line), LineCmp);
+        w_err = WriteTextinFile(&file, "hamlet_sorted.txt");
+        RET_ON_VAL(w_err == -1, ERR_NULL_PTR, ERR_NULL_PTR);
+
+        MyqSort(file.content, file.lines_count, sizeof(line), LineReverceCmp);
+        w_err = WriteTextinFile(&file, "hamlet_sorted_reversed.txt");
+        RET_ON_VAL(w_err == -1, ERR_NULL_PTR, ERR_NULL_PTR);
 
         printf("File sorted by qStrSort\n");
     }
     else {
-        qsort(file.text, file.lines_count, sizeof(line), linecmp);
-        WriteTextinFile(file.text, "hamlet_sorted.txt");
 
-        qsort(file.text, file.lines_count, sizeof(line), linercmp);
-        WriteTextinFile(file.text, "hamlet_sorted_reversed.txt");
+        int w_err = 0;
+
+        qsort(file.content, file.lines_count, sizeof(line), LineCmp);
+        w_err = WriteTextinFile(&file, "hamlet_sorted.txt");
+        RET_ON_VAL(w_err == -1, ERR_NULL_PTR, ERR_NULL_PTR);
+
+        qsort(file.content, file.lines_count, sizeof(line), LineReverceCmp);
+        w_err = WriteTextinFile(&file, "hamlet_sorted_reversed.txt");
+        RET_ON_VAL(w_err == -1, ERR_NULL_PTR, ERR_NULL_PTR);
 
         printf("File sorted by qsort\n");
     }
 
+    RET_ON_VAL(FreeText(&file) == -1, ERR_NULL_PTR, ERR_NULL_PTR);
+    
     return 0;
 }

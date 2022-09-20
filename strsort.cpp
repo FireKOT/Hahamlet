@@ -1,114 +1,99 @@
 #include <stdio.h>
 #include <malloc.h>
-#include <string.h>
+#include <string.h> 
 #include <ctype.h>
 #include <sys/stat.h>
 #include "config.h"
 #include "general.h"
 #include "strsort.h"
 
-#define BUF_SIZE 10
 
-int GetText (const char *file_name, lyrics *file) {
+const unsigned int ADD_SIZE = 10;
 
-    if (!file_name) {
-        ERR_MSG(ERR_NULL_PTR);
-        return -1;
-    }
+
+int GetText (const char *file_name, text *file) {
+
+    RET_ON_VAL(!file_name || !file, ERR_NULL_PTR, -1);
 
     FILE *input = fopen(file_name, "r");
-    if (!input) {
-        ERR_MSG(ERR_NULL_PTR);
-        return -1;
-    }
+    RET_ON_VAL(!input, ERR_ACC_DENi, -1);
 
-    struct stat file_stats;                         //why i need to write "struct"
-    int status = stat(file_name, &file_stats);
-    if (status == -1) {
-        ERR_MSG(ERR_NULL_PTR);
-        return -1;
-    }
+    size_t file_size = GetFileSize(file_name);
 
-    file->source = (char*) calloc(file_stats.st_size / sizeof(char) + BUF_SIZE, sizeof(char));
-    if (!file->source) {
-        ERR_MSG(ERR_NULL_PTR);
-        return -1;
-    }
+    file->source = (char*) calloc(file_size + ADD_SIZE, sizeof(char));
+    RET_ON_VAL(!file->source, ERR_NULL_PTR, -1);
 
-    int lines_count = ReadFile(input, file->source);
+    size_t source_lines_count = ReadFile(file, file_size, input);
 
-    file->text = (line*) calloc(lines_count + BUF_SIZE, sizeof(line));
-    if (!file->text) {
-        ERR_MSG(ERR_NULL_PTR);
-        return -1;
-    }
+    file->content = (line*) calloc(source_lines_count + ADD_SIZE, sizeof(line));
+    RET_ON_VAL(!file->content, ERR_NULL_PTR, -1);
 
-    file->lines_count = SepLines(file->text, file->source);
+    SepLines(file);
 
     fclose(input);
     return 0;
 }
 
-int ReadFile (FILE *input, char *buf) {
+size_t GetFileSize (const char *file_name) {
 
-    if (!input || !buf) {
-        ERR_MSG(ERR_NULL_PTR);
-        return EOF;
-    }
+    struct stat file_stats;
+    int status = stat(file_name, &file_stats);
+    RET_ON_VAL(status == -1, ERR_ACC_DENi, -1);
 
-    int c = 0, lines_count = 0;
-    int i = 0;
-    buf[++i] = '\0';
-    while ((c = getc(input)) != EOF) {
-        if (c != '\r') {
-            if (c != '\n') {
-                buf[i] = (char) c;
-            }
-            else {
-                buf[i] = '\0';
-                lines_count++;
-            }
+    return file_stats.st_size;
+}
 
-            i++;
+int ReadFile (text *file, size_t file_size, FILE *input) {
+
+    RET_ON_VAL(!file, ERR_NULL_PTR, -1);
+
+    size_t char_count = fread(file->source, sizeof(char), file_size, input);
+    size_t source_lines_count = UpdateFile(file, char_count);
+
+    return source_lines_count;
+}
+
+int UpdateFile (text *file, size_t char_count) {
+
+    RET_ON_VAL(!file, ERR_NULL_PTR, -1);
+
+    size_t i = 0, lines_count = 0;
+    for (i = 0; i < char_count; i++) {
+        if (file->source[i] == '\n') {
+            file->source[i] = '\0';
+            lines_count++;
         }
     }
-    buf[i++] = '\0';
-    buf[i] = EOF;
+    file->source[i++] = '\0';
+    file->source[i] = EOF;
 
     return lines_count;
 }
 
-int SepLines (line *text, char *file) {
+int SepLines (text *file) {
 
-    if (!text || !file) {
-        ERR_MSG(ERR_NULL_PTR);
-        return -1;
-    }
+    RET_ON_VAL(!file, ERR_NULL_PTR, -1);
 
-    int lines_count = 0;
-    int i = 0;
-    for (i = 0; *file != EOF; i++, file++) {
-        if (*file != '\0') {
-            text[i].start = file;
-            lines_count++;
-            file++;
+    int i = 0, j = 0;
+    while (file->source[i] != EOF) {
+        if (file->source[i] != '\0') {
+            file->content[j].start = &file->source[i];
+            i++;
+
+            file->content[j].len = 1;
+            while (file->source[i++] != '\0') {
+                file->content[j].len++;
+            }
+
+            j++;
         }
         else {
-            i--;
-            continue;
+            i++;
         }
-
-        while (*file != '\0') {
-            text[i].end = file;
-            file++;
-        } 
-        //text[i].end = --file;
-        //file++;
     }
-    text[i].start = NULL;
-    text[i].end = NULL;
+    file->lines_count = j;
 
-    return lines_count;
+    return 0;
 }
 
 void MyqSort (void *start, int count, int size, int (*comp)(const void *param1, const void *param2)) {
@@ -129,76 +114,72 @@ int sort_partition (void *start, int hight, int size, comp_t *comp) {
     int i = 0;
     for (int j = 0; j < hight; j++) {
         if (comp(mas + j*size, mas + hight*size) <= 0) {
-            swap(mas + i*size, mas + j*size, size);
+            bitswap(mas + i*size, mas + j*size, size);
             i++;
         }
     }
-    swap(mas + i*size, mas + hight*size, size);
+    bitswap(mas + i*size, mas + hight*size, size);
 
     return i;
 }
 
-int linecmp (const void *param1, const void *param2) {
+int GlobalCmp (const char *pr1, const char *pr2, size_t len1, size_t len2, int mod) {
 
-    char *a_start = ((const line*) param1)->start;
-    char *b_start = ((const line*) param2)->start;
-    char *a_end   = ((const line*) param1)->end;
-    char *b_end   = ((const line*) param2)->end;
-
-    while (!isalnum(*a_start) && a_start != a_end + 1) {
-        a_start++;
+    size_t i = 0, j = 0;
+    while (!isalnum(*(pr1 + i*mod)) && i < len1) {
+        i++;
     }
-    while (!isalnum(*b_start) && b_start != b_end + 1) {
-        b_start++;
+    while (!isalnum(*(pr2 + j*mod)) && j < len2) {
+        j++;
     }
     
-    for ( ;tolower(*a_start) == tolower(*b_start); a_start++, b_start++) {
-        if (a_start == a_end + 1) {
-            return 0;
-        }
+    while(tolower(*(pr1 + i*mod)) == tolower(*(pr2 + j*mod)) && i < len1 && j < len2) {
+        i++;
+        j++;
+    }
+
+    if (i == len1 && j == len2) {
+        return 0;
+    }
+    else if (i == len1) {
+        return -1;
+    }
+    else if(j == len2) {
+        return 1;
     }
     
-    return tolower(*a_start) - tolower(*b_start);
+    return tolower(*(pr1 + i*mod)) - tolower(*(pr2 + j*mod));
 }
 
-int linercmp (const void *param1, const void *param2) {
+int LineCmp (const void *param1, const void *param2) {
 
-    char *a_start = ((const line*) param1)->start;
-    char *b_start = ((const line*) param2)->start;
-    char *a_end   = ((const line*) param1)->end;
-    char *b_end   = ((const line*) param2)->end;
+    char *pr1_start = ((const line*) param1)->start;
+    char *pr2_start = ((const line*) param2)->start;
+    size_t pr1_len =  ((const line*) param1)->len;
+    size_t pr2_len =  ((const line*) param2)->len;
 
-    while (!isalnum(*a_end) && a_end != a_start - 1) {
-        a_end--;
-    }
-    while (!isalnum(*b_end) && b_end != b_start - 1) {
-        b_end--;
-    }
-
-    for ( ; tolower(*a_end) == tolower(*b_end); a_end--, b_end--) {
-        if (a_end == a_start - 1) {
-            return 0; 
-        }
-    }
-
-    return tolower(*a_end) - tolower(*b_end);
+    return GlobalCmp(pr1_start, pr2_start, pr1_len, pr2_len, 1);
 }
 
-int WriteTextinFile (line *text, const char *file) {
+int LineReverceCmp (const void *param1, const void *param2) {
 
-    if (!text || !file) {
-        ERR_MSG(ERR_NULL_PTR);
-        return EOF;
-    }
+    char *pr1_end = ((const line*) param1)->start + ((const line*) param1)->len - 1;
+    char *pr2_end = ((const line*) param2)->start + ((const line*) param2)->len - 1;
+    size_t pr1_len =  ((const line*) param1)->len;
+    size_t pr2_len =  ((const line*) param2)->len;
 
-    FILE *output = fopen(file, "w");
-    if (!output) {
-        ERR_MSG(ERR_NULL_PTR);
-        return EOF;
-    }
+    return GlobalCmp(pr1_end, pr2_end, pr1_len, pr2_len, -1);
+}
 
-    for (int i = 0; text[i].start != NULL; i++) {
-        char *str = text[i].start;
+int WriteTextinFile (text *file, const char *out_file) {
+
+    RET_ON_VAL(!file || !file, ERR_NULL_PTR, -1);
+
+    FILE *output = fopen(out_file, "w");
+    RET_ON_VAL(!output, ERR_ACC_DENi, -1);
+
+    for (size_t i = 0; i < file->lines_count; i++) {
+        char *str = file->content[i].start;
         while (!isalnum(*str) && *str != '\0') {
             str++;
         }
@@ -207,7 +188,20 @@ int WriteTextinFile (line *text, const char *file) {
             fprintf(output, "%s\n", str);
         }
     }
+    
     fclose(output);
+    return 0;
+}
 
-    return true;
+int FreeText (text *file) {
+    RET_ON_VAL(!file, ERR_NULL_PTR, -1);
+    ISWARN(!file->content || !file->source, WARN_FREE_NULL_PTR);
+    
+    free(file->content);
+    free(file->source);
+
+    file->content = 0;
+    file->source  = 0;
+
+    return 0;
 }

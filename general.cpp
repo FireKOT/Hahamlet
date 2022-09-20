@@ -18,7 +18,7 @@ int ArgsProcess (int argc, const char *argv[], int num, const char *possible_arg
     return 1;
 }
 
-void swap (void *param1, void *param2, int size) {
+void bitswap (void *param1, void *param2, int size) {
 
     char *pr1 = (char*) param1;
     char *pr2 = (char*) param2;
